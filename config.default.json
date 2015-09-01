@@ -1,0 +1,26 @@
+{
+  "amqp": {
+    "host": "localhost",
+    "port": 5672,
+    "user": "guest",
+    "pass": "guest"
+  },
+  "queues": {
+    "publish": {
+      "name": "my.trace.publish",
+      "routingKey": "publish.#",
+      "options":{
+        "durable": true,
+        "autoDelete": false
+      }
+    },
+    "deliver": {
+      "name": "my.trace.deliver",
+      "routingKey": "deliver.#",
+      "options":{
+        "durable": true,
+        "autoDelete": false
+      }
+    }
+  }
+}
