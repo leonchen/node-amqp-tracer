@@ -2,6 +2,13 @@
 The trace/firehose feature of RabbitMQ is very useful for debugging, and it can be more than that.
 
 ## Install
+make sure tracing is enabled for rabbitmq through rabbitmqctl(you will need to run this command everytime when rabbitmq server restarts):
+
+````
+rabbitmqctl trace_on
+````
+and then install this module:
+
 ````
 npm install amqp-tracer
 ````
@@ -9,7 +16,7 @@ npm install amqp-tracer
 ## Usage
 ````
 Tracer = require '../tracer'
-# checkout config.defualt.json for config options such as RabbitMq host/port
+# checkout config.defualt.json for config options such as rabbitmq host/port
 config = {}
 tracer = new Tracer(config)
 tracer.on 'message.published', (data) ->
