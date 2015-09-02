@@ -15,16 +15,19 @@ npm install amqp-tracer
 
 ## Usage
 ````
-Tracer = require '../tracer'
+Tracer = require 'amqp-tracer'
 # checkout config.defualt.json for config options such as rabbitmq host/port
 config = {}
 tracer = new Tracer(config)
+tracer.on 'connect.ready', (err) =>
+  console.log "connected"
+
+tracer.on 'connect.error', (err) =>
+  console.warn err
+
 tracer.on 'message.published', (data) ->
   console.log "published:", data.message
 
 tracer.on 'message.delivered', (data) ->
   console.log "delivered:", data.message
-
-tracer.on 'connect.error', (err) =>
-  console.warn err
 ````
