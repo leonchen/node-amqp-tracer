@@ -1,6 +1,6 @@
 {
   "name": "amqp-tracer",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -17,8 +17,12 @@
   },
   "homepage": "https://github.com/leonchen/node-amqp-tracer#readme",
   "dependencies": {
-    "amqp": "^0.2.4",
+    "amqplib": "^0.3.2",
+    "co": "^4.6.0",
     "coffee-script": "^1.9.3",
     "merge": "^1.2.0"
+  },
+  "devDependencies": {
+    "async": "^1.4.2"
   }
 }

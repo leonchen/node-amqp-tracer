@@ -1,55 +1,82 @@
 Tracer = require '../tracer'
-
-d0 = { text:"this is a message" }
-d1 = require './5k.json'
-d2 = require './255k.json'
-MSG = d1
-
-times = 10000
-c = pc = dc = 0
-traceName = "trace"
+amqp = require 'amqplib/callback_api'
+async = require 'async'
 
 exchangeName = "tracer.test.exchange"
 queueName = "tracer.test.queue"
 routingKey = "performanceTestKey"
 
-tracer = new Tracer()
-tracer.on 'connect.ready', ->
-  console.log "connected"
+MESSAGES = [
+ ["40B", new Buffer(JSON.stringify({ id: "testId", text:"this is a message" }))]
+ ["5KB", new Buffer(JSON.stringify(require './5k.json'))]
+ ["255KB", new Buffer(JSON.stringify(require './255k.json'))]
+]
 
-  # create exchange
-  tracer.conn.exchange exchangeName, {durable: true, autoDelete: false}, (ex) ->
-    console.log "exchange declared"
+fin = (err) ->
+  if err
+    console.warn err
+    process.exit(1)
+  else
+    console.log "done"
+    # waiting for the delivered consuming to be finished
+    # setTimeout ->
+    #   process.exit(0)
+    # , 10000
 
-    # create consumer queue and bind to exchange
-    tracer.conn.queue queueName, {durable: true, autoDelete: false}, (q) ->
-      console.log "connect to sub queue"
-      q.bind exchangeName, routingKey, ->
-        q.subscribe (message) ->
-          console.log "consumed"
+benchmark = (url) ->
+  ch = null
+  async.waterfall [
+    (cb) ->
+      amqp.connect url, cb
+    (conn, cb) ->
+      conn.createChannel cb
+    (channel, cb) ->
+      ch = channel
+      ch.assertExchange exchangeName, "topic", {}, cb
+    (ok, cb) ->
+      ch.assertQueue queueName, {}, cb
+    (ok, cb) ->
+      ch.bindQueue queueName, exchangeName, routingKey, {}, cb
+  ], (err) ->
+    return fin(err) if err
+
+    console.log "size\ttimes\ttotal(ms)\tdpm(ms)\trps"
+    async.eachSeries [1000, 5000, 10000], (times, cb) ->
+      async.eachSeries MESSAGES, (msg, cb) ->
+        traceName = "#{msg[0]}\t#{times}"
+        c = 0
+        start = null
+        ch.consume queueName, (msg) ->
+          ch.ack(msg)
           c++
           if c == times
-            console.timeEnd(traceName)
+            #console.timeEnd(traceName)
+            d = Date.now()-start
+            console.log "#{traceName}\t#{d}\t#{d/times}\t#{parseInt(1000*times/d)}"
+            ch.cancel(msg.fields.consumerTag)
+            cb()
+        , {}, (err, ok) ->
+          return fin(err) if err
 
         # publish messages
-        console.log "publishing #{times} messages"
-        console.time(traceName)
-        for idx in [1..times]
-          ex.publish routingKey, MSG, {}, ->
+        start = Date.now()
+        #console.time(traceName)
+        for _ in [1..times]
+          ch.publish exchangeName, routingKey, msg[1], {contentType: "application/json"}
+      , cb
+    , fin
+        
 
+tracer = new Tracer()
+tracer.on 'channel.ready', ->
+  benchmark(tracer.serverUrl)
 
 tracer.on 'message.published', (data) ->
-  console.log "published"
-  pc++
-  if pc == times
-    console.log "publish trace done"
 
 tracer.on 'message.delivered', (data) ->
-  console.log "delivered"
-  dc++
-  if dc == times
-    console.log "deliver trace done"
+  
+tracer.on 'channel.close', ->
+  console.log "channel closed"
 
-tracer.on 'connect.error', (err) =>
-  console.warn err
-  process.exit(1)
+tracer.on 'error', (err) ->
+  fin(err)
